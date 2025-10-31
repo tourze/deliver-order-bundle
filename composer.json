@@ -31,7 +31,7 @@
     "tourze/doctrine-timestamp-bundle": "0.0.*",
     "tourze/doctrine-user-bundle": "0.0.*",
     "tourze/easy-admin-menu-bundle": "0.1.*",
-    "tourze/enum-extra": "0.1.*",
+    "tourze/enum-extra": "1.*",
     "tourze/json-rpc-core": "0.0.*",
     "tourze/json-rpc-log-bundle": "0.1.*",
     "tourze/order-core-bundle": "0.0.*",
