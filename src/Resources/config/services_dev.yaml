@@ -1,0 +1,9 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # 禁用 DataFixtures 以避免与 symfony-testing-framework 的 AbstractRepositoryTestCase 冲突
+    # DeliverOrderBundle\DataFixtures\:
+    #     resource: '../../DataFixtures/'
+    #     tags: ['doctrine.fixture.orm']

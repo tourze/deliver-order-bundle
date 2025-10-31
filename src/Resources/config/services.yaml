@@ -1,0 +1,50 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  DeliverOrderBundle\Controller\:
+    resource: '../../Controller/'
+  DeliverOrderBundle\Repository\:
+    resource: '../../Repository/'
+    tags:
+      - 'doctrine.repository_service'
+  DeliverOrderBundle\Service\:
+    resource: '../../Service/'
+  DeliverOrderBundle\Procedure\:
+    resource: '../../Procedure/'
+
+  # 注册管理菜单服务
+  DeliverOrderBundle\Service\AdminMenu:
+    public: true
+    tags:
+      - { name: 'tourze_easy_admin_menu.provider' }
+
+  # 确保 Procedure 服务被注册为公共服务
+  DeliverOrderBundle\Procedure\SyncDeliveryInfoFromOms:
+    public: true
+
+  # 显式配置 DeliveryService 的 Monolog 通道
+  DeliverOrderBundle\Service\DeliveryService:
+    tags: 
+      - name: monolog.logger
+        channel: deliver_order
+    public: true
+
+  # 注册 DeliverOperationService 作为 DeliverOperationInterface 的实现
+  DeliverOrderBundle\Service\DeliverOperationService:
+    public: true
+
+  # 将 DeliverOperationService 注册为接口的具体实现
+  OrderCoreBundle\Service\DeliverOperationInterface: '@DeliverOrderBundle\Service\DeliverOperationService'
+
+  # 配置 Repository 为公共服务以支持测试
+  DeliverOrderBundle\Repository\DeliverOrderRepository:
+    public: true
+    tags:
+      - { name: 'doctrine.repository_service' }
+
+  DeliverOrderBundle\Repository\DeliverStockRepository:
+    public: true
+    tags:
+      - { name: 'doctrine.repository_service' }

@@ -1,0 +1,11 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # 加载测试 DataFixtures
+    DeliverOrderBundle\DataFixtures\DeliverOrderFixtures:
+        tags: ['doctrine.fixture.orm']
+    
+    DeliverOrderBundle\DataFixtures\DeliverStockFixtures:
+        tags: ['doctrine.fixture.orm']
