@@ -93,8 +93,7 @@ final class DeliverStockCrudControllerTest extends AbstractEasyAdminControllerTe
 
     public function testDashboardAccessible(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client);
+        $client = self::createAuthenticatedClient();
 
         $crawler = $client->request('GET', '/admin');
 
