@@ -6,13 +6,14 @@ namespace DeliverOrderBundle\Tests\Procedure;
 
 use DeliverOrderBundle\Enum\DeliverOrderStatus;
 use DeliverOrderBundle\Enum\SourceType;
+use DeliverOrderBundle\Param\SyncDeliveryInfoFromOmsParam;
 use DeliverOrderBundle\Procedure\SyncDeliveryInfoFromOms;
 use DeliverOrderBundle\Repository\DeliverOrderRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tourze\JsonRPC\Core\Exception\ApiException;
-use Tourze\JsonRPC\Core\Model\JsonRpcRequest;
-use Tourze\JsonRPC\Core\Tests\AbstractProcedureTestCase;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
+use Tourze\PHPUnitJsonRPC\AbstractProcedureTestCase;
 
 /**
  * @internal
@@ -33,32 +34,36 @@ final class SyncDeliveryInfoFromOmsTest extends AbstractProcedureTestCase
         /** @var DeliverOrderRepository $deliverOrderRepository */
         $deliverOrderRepository = self::getContainer()->get(DeliverOrderRepository::class);
 
-        $procedure->deliverySn = 'TEST-EXECUTE-' . uniqid();
-        $procedure->sourceOrderId = 'ORDER-001';
-        $procedure->expressCompany = '顺丰快递';
-        $procedure->expressCode = 'SF';
-        $procedure->expressNumber = 'SF' . uniqid();
-        $procedure->consigneeName = '张三';
-        $procedure->consigneePhone = '13800138000';
-        $procedure->consigneeAddress = '上海市浦东新区测试地址';
-        $procedure->deliveryItems = [
-            [
-                'sku' => 'SKU001',
-                'quantity' => 1,
-                'productName' => '测试产品',
-            ],
-        ];
+        $deliverySn = 'TEST-EXECUTE-' . uniqid();
+        $param = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: $deliverySn,
+            sourceOrderId: 'ORDER-001',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '张三',
+            consigneePhone: '13800138000',
+            consigneeAddress: '上海市浦东新区测试地址',
+            deliveryItems: [
+                [
+                    'sku' => 'SKU001',
+                    'quantity' => 1,
+                    'productName' => '测试产品',
+                ],
+            ]
+        );
 
-        $result = $procedure->execute();
+        $result = $procedure->execute($param);
 
-        $this->assertIsArray($result);
-        $this->assertTrue($result['success']);
-        $this->assertEquals('发货信息同步成功', $result['message']);
-        $this->assertArrayHasKey('deliveryOrderId', $result);
+        $this->assertInstanceOf(ArrayResult::class, $result);
+        $resultArray = $result->toArray();
+        $this->assertTrue($resultArray['success']);
+        $this->assertEquals('发货信息同步成功', $resultArray['message']);
+        $this->assertArrayHasKey('deliveryOrderId', $resultArray);
 
-        $deliverOrder = $deliverOrderRepository->find($result['deliveryOrderId']);
+        $deliverOrder = $deliverOrderRepository->find($resultArray['deliveryOrderId']);
         $this->assertNotNull($deliverOrder);
-        $this->assertEquals($procedure->deliverySn, $deliverOrder->getSn());
+        $this->assertEquals($deliverySn, $deliverOrder->getSn());
     }
 
     public function testSyncDeliveryInfoFromOmsSuccess(): void
@@ -68,46 +73,47 @@ final class SyncDeliveryInfoFromOmsTest extends AbstractProcedureTestCase
         /** @var DeliverOrderRepository $deliverOrderRepository */
         $deliverOrderRepository = self::getContainer()->get(DeliverOrderRepository::class);
 
-        $procedure->deliverySn = 'TEST-' . uniqid();
-        $procedure->sourceOrderId = 'ORDER-001';
-        $procedure->expressCompany = '顺丰快递';
-        $procedure->expressCode = 'SF';
-        $procedure->expressNumber = 'SF' . uniqid();
-        $procedure->consigneeName = '张三';
-        $procedure->consigneePhone = '13800138000';
-        $procedure->consigneeAddress = '上海市浦东新区测试地址';
-        $procedure->consigneeRemark = '请轻拿轻放';
-        $procedure->shippedTime = '2024-01-01 10:00:00';
-        $procedure->shippedBy = 'OMS操作员';
-        $procedure->deliveryItems = [
-            [
-                'sku' => 'SKU001',
-                'quantity' => 2,
-                'productName' => '测试产品1',
-                'productCode' => 'PROD001',
-                'batchNo' => 'BATCH001',
-                'remark' => '备注1',
-            ],
-            [
-                'sku' => 'SKU002',
-                'quantity' => 1,
-                'productName' => '测试产品2',
-            ],
-        ];
+        $deliverySn = 'TEST-' . uniqid();
+        $param = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: $deliverySn,
+            sourceOrderId: 'ORDER-001',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '张三',
+            consigneePhone: '13800138000',
+            consigneeAddress: '上海市浦东新区测试地址',
+            consigneeRemark: '请轻拿轻放',
+            shippedTime: '2024-01-01 10:00:00',
+            shippedBy: 'OMS操作员',
+            deliveryItems: [
+                [
+                    'sku' => 'SKU001',
+                    'quantity' => 2,
+                    'productName' => '测试产品1',
+                    'productCode' => 'PROD001',
+                    'batchNo' => 'BATCH001',
+                    'remark' => '备注1',
+                ],
+                [
+                    'sku' => 'SKU002',
+                    'quantity' => 1,
+                    'productName' => '测试产品2',
+                ],
+            ]
+        );
 
-        $request = new JsonRpcRequest();
-        $request->setMethod('SyncDeliveryInfoFromOms');
-        /** @var array{success: bool, message: string, deliveryOrderId: string} $result */
-        $result = $procedure->__invoke($request);
+        $result = $procedure->execute($param);
 
-        $this->assertIsArray($result);
-        $this->assertTrue($result['success']);
-        $this->assertEquals('发货信息同步成功', $result['message']);
-        $this->assertArrayHasKey('deliveryOrderId', $result);
+        $this->assertInstanceOf(ArrayResult::class, $result);
+        $resultArray = $result->toArray();
+        $this->assertTrue($resultArray['success']);
+        $this->assertEquals('发货信息同步成功', $resultArray['message']);
+        $this->assertArrayHasKey('deliveryOrderId', $resultArray);
 
-        $deliverOrder = $deliverOrderRepository->find($result['deliveryOrderId']);
+        $deliverOrder = $deliverOrderRepository->find($resultArray['deliveryOrderId']);
         $this->assertNotNull($deliverOrder);
-        $this->assertEquals($procedure->deliverySn, $deliverOrder->getSn());
+        $this->assertEquals($deliverySn, $deliverOrder->getSn());
         $this->assertEquals(SourceType::OMS, $deliverOrder->getSourceType());
         $this->assertEquals(DeliverOrderStatus::SHIPPED, $deliverOrder->getStatus());
         $this->assertCount(2, $deliverOrder->getDeliverStocks());
@@ -119,50 +125,48 @@ final class SyncDeliveryInfoFromOmsTest extends AbstractProcedureTestCase
         $procedure = self::getContainer()->get(SyncDeliveryInfoFromOms::class);
         $sn = 'TEST-' . uniqid();
 
-        $procedure->deliverySn = $sn;
-        $procedure->sourceOrderId = 'ORDER-001';
-        $procedure->expressCompany = '顺丰快递';
-        $procedure->expressCode = 'SF';
-        $procedure->expressNumber = 'SF' . uniqid();
-        $procedure->consigneeName = '张三';
-        $procedure->consigneePhone = '13800138000';
-        $procedure->consigneeAddress = '上海市浦东新区测试地址';
-        $procedure->deliveryItems = [
-            [
-                'sku' => 'SKU001',
-                'quantity' => 1,
-                'productName' => '测试产品',
-            ],
-        ];
+        $param1 = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: $sn,
+            sourceOrderId: 'ORDER-001',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '张三',
+            consigneePhone: '13800138000',
+            consigneeAddress: '上海市浦东新区测试地址',
+            deliveryItems: [
+                [
+                    'sku' => 'SKU001',
+                    'quantity' => 1,
+                    'productName' => '测试产品',
+                ],
+            ]
+        );
 
-        $request = new JsonRpcRequest();
-        $request->setMethod('SyncDeliveryInfoFromOms');
-        $procedure->__invoke($request);
+        $procedure->execute($param1);
 
-        /** @var SyncDeliveryInfoFromOms $procedure2 */
-        $procedure2 = self::getContainer()->get(SyncDeliveryInfoFromOms::class);
-        $procedure2->deliverySn = $sn;
-        $procedure2->sourceOrderId = 'ORDER-002';
-        $procedure2->expressCompany = '顺丰快递';
-        $procedure2->expressCode = 'SF';
-        $procedure2->expressNumber = 'SF' . uniqid();
-        $procedure2->consigneeName = '李四';
-        $procedure2->consigneePhone = '13800138001';
-        $procedure2->consigneeAddress = '上海市浦东新区测试地址2';
-        $procedure2->deliveryItems = [
-            [
-                'sku' => 'SKU002',
-                'quantity' => 1,
-                'productName' => '测试产品2',
-            ],
-        ];
+        $param2 = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: $sn,
+            sourceOrderId: 'ORDER-002',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '李四',
+            consigneePhone: '13800138001',
+            consigneeAddress: '上海市浦东新区测试地址2',
+            deliveryItems: [
+                [
+                    'sku' => 'SKU002',
+                    'quantity' => 1,
+                    'productName' => '测试产品2',
+                ],
+            ]
+        );
 
         $this->expectException(ApiException::class);
         $this->expectExceptionMessage('发货单号已存在');
 
-        $request2 = new JsonRpcRequest();
-        $request2->setMethod('SyncDeliveryInfoFromOms');
-        $procedure2->__invoke($request2);
+        $procedure->execute($param2);
     }
 
     public function testValidateEmptyDeliveryItems(): void
@@ -170,22 +174,22 @@ final class SyncDeliveryInfoFromOmsTest extends AbstractProcedureTestCase
         /** @var SyncDeliveryInfoFromOms $procedure */
         $procedure = self::getContainer()->get(SyncDeliveryInfoFromOms::class);
 
-        $procedure->deliverySn = 'TEST-' . uniqid();
-        $procedure->sourceOrderId = 'ORDER-001';
-        $procedure->expressCompany = '顺丰快递';
-        $procedure->expressCode = 'SF';
-        $procedure->expressNumber = 'SF' . uniqid();
-        $procedure->consigneeName = '张三';
-        $procedure->consigneePhone = '13800138000';
-        $procedure->consigneeAddress = '上海市浦东新区测试地址';
-        $procedure->deliveryItems = [];
+        $param = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: 'TEST-' . uniqid(),
+            sourceOrderId: 'ORDER-001',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '张三',
+            consigneePhone: '13800138000',
+            consigneeAddress: '上海市浦东新区测试地址',
+            deliveryItems: []
+        );
 
         $this->expectException(ApiException::class);
         $this->expectExceptionMessage('发货商品列表不能为空');
 
-        $request = new JsonRpcRequest();
-        $request->setMethod('SyncDeliveryInfoFromOms');
-        $procedure->__invoke($request);
+        $procedure->execute($param);
     }
 
     public function testValidateInvalidDeliveryItems(): void
@@ -193,28 +197,28 @@ final class SyncDeliveryInfoFromOmsTest extends AbstractProcedureTestCase
         /** @var SyncDeliveryInfoFromOms $procedure */
         $procedure = self::getContainer()->get(SyncDeliveryInfoFromOms::class);
 
-        $procedure->deliverySn = 'TEST-' . uniqid();
-        $procedure->sourceOrderId = 'ORDER-001';
-        $procedure->expressCompany = '顺丰快递';
-        $procedure->expressCode = 'SF';
-        $procedure->expressNumber = 'SF' . uniqid();
-        $procedure->consigneeName = '张三';
-        $procedure->consigneePhone = '13800138000';
-        $procedure->consigneeAddress = '上海市浦东新区测试地址';
-        $procedure->deliveryItems = [
-            [
-                'sku' => '',
-                'quantity' => 1,
-                'productName' => '测试产品',
-            ],
-        ];
+        $param = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: 'TEST-' . uniqid(),
+            sourceOrderId: 'ORDER-001',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '张三',
+            consigneePhone: '13800138000',
+            consigneeAddress: '上海市浦东新区测试地址',
+            deliveryItems: [
+                [
+                    'sku' => '',
+                    'quantity' => 1,
+                    'productName' => '测试产品',
+                ],
+            ]
+        );
 
         $this->expectException(ApiException::class);
         $this->expectExceptionMessage('第1个商品SKU不能为空');
 
-        $request = new JsonRpcRequest();
-        $request->setMethod('SyncDeliveryInfoFromOms');
-        $procedure->__invoke($request);
+        $procedure->execute($param);
     }
 
     public function testValidateInvalidQuantity(): void
@@ -222,37 +226,27 @@ final class SyncDeliveryInfoFromOmsTest extends AbstractProcedureTestCase
         /** @var SyncDeliveryInfoFromOms $procedure */
         $procedure = self::getContainer()->get(SyncDeliveryInfoFromOms::class);
 
-        $procedure->deliverySn = 'TEST-' . uniqid();
-        $procedure->sourceOrderId = 'ORDER-001';
-        $procedure->expressCompany = '顺丰快递';
-        $procedure->expressCode = 'SF';
-        $procedure->expressNumber = 'SF' . uniqid();
-        $procedure->consigneeName = '张三';
-        $procedure->consigneePhone = '13800138000';
-        $procedure->consigneeAddress = '上海市浦东新区测试地址';
-        $procedure->deliveryItems = [
-            [
-                'sku' => 'SKU001',
-                'quantity' => 0,
-                'productName' => '测试产品',
-            ],
-        ];
+        $param = new SyncDeliveryInfoFromOmsParam(
+            deliverySn: 'TEST-' . uniqid(),
+            sourceOrderId: 'ORDER-001',
+            expressCompany: '顺丰快递',
+            expressCode: 'SF',
+            expressNumber: 'SF' . uniqid(),
+            consigneeName: '张三',
+            consigneePhone: '13800138000',
+            consigneeAddress: '上海市浦东新区测试地址',
+            deliveryItems: [
+                [
+                    'sku' => 'SKU001',
+                    'quantity' => 0,
+                    'productName' => '测试产品',
+                ],
+            ]
+        );
 
         $this->expectException(ApiException::class);
         $this->expectExceptionMessage('第1个商品数量必须大于0');
 
-        $request = new JsonRpcRequest();
-        $request->setMethod('SyncDeliveryInfoFromOms');
-        $procedure->__invoke($request);
-    }
-
-    public function testGetMockResult(): void
-    {
-        $mockResult = SyncDeliveryInfoFromOms::getMockResult();
-
-        $this->assertIsArray($mockResult);
-        $this->assertTrue($mockResult['success']);
-        $this->assertEquals('发货信息同步成功', $mockResult['message']);
-        $this->assertEquals('12345', $mockResult['deliveryOrderId']);
+        $procedure->execute($param);
     }
 }

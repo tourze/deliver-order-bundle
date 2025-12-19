@@ -3,12 +3,14 @@
 namespace DeliverOrderBundle\Procedure;
 
 use DeliverOrderBundle\Exception\DeliverOperationException;
+use DeliverOrderBundle\Param\SyncDeliveryInfoFromOmsParam;
 use DeliverOrderBundle\Service\DeliveryService;
 use Symfony\Component\DependencyInjection\Attribute\Autoconfigure;
 use Tourze\JsonRPC\Core\Attribute\MethodDoc;
 use Tourze\JsonRPC\Core\Attribute\MethodExpose;
-use Tourze\JsonRPC\Core\Attribute\MethodParam;
 use Tourze\JsonRPC\Core\Attribute\MethodTag;
+use Tourze\JsonRPC\Core\Contracts\RpcParamInterface;
+use Tourze\JsonRPC\Core\Result\ArrayResult;
 use Tourze\JsonRPC\Core\Domain\JsonRpcMethodInterface;
 use Tourze\JsonRPC\Core\Exception\ApiException;
 use Tourze\JsonRPC\Core\Model\JsonRpcRequest;
@@ -22,96 +24,54 @@ use Tourze\JsonRPCLogBundle\Attribute\Log;
 #[Autoconfigure(public: true)]
 class SyncDeliveryInfoFromOms extends BaseProcedure implements JsonRpcMethodInterface
 {
-    #[MethodParam(description: '发货单号')]
-    public string $deliverySn;
-
-    #[MethodParam(description: '来源订单ID')]
-    public string $sourceOrderId;
-
-    #[MethodParam(description: '快递公司')]
-    public string $expressCompany;
-
-    #[MethodParam(description: '快递公司编码')]
-    public string $expressCode;
-
-    #[MethodParam(description: '快递单号')]
-    public string $expressNumber;
-
-    #[MethodParam(description: '收货人姓名')]
-    public string $consigneeName;
-
-    #[MethodParam(description: '收货人电话')]
-    public string $consigneePhone;
-
-    #[MethodParam(description: '收货地址')]
-    public string $consigneeAddress;
-
-    #[MethodParam(description: '收货备注')]
-    public ?string $consigneeRemark = null;
-
-    #[MethodParam(description: '发货时间')]
-    public ?string $shippedTime = null;
-
-    #[MethodParam(description: '发货人')]
-    public ?string $shippedBy = null;
-
-    /** @var array<int, array{sku: string, quantity: int, productName: string, productCode?: string, batchNo?: string, serialNo?: string, remark?: string}> */
-    #[MethodParam(description: '发货商品列表')]
-    public array $deliveryItems;
 
     public function __construct(
         private readonly DeliveryService $deliveryService,
     ) {
     }
 
-    public static function getMockResult(): ?array
+    /**
+     * @phpstan-param SyncDeliveryInfoFromOmsParam $param
+     */
+    public function execute(SyncDeliveryInfoFromOmsParam|RpcParamInterface $param): ArrayResult
     {
-        return [
-            'success' => true,
-            'message' => '发货信息同步成功',
-            'deliveryOrderId' => '12345',
-        ];
-    }
-
-    public function execute(): array
-    {
-        $this->validateDeliveryItems();
+        $this->validateDeliveryItems($param);
 
         try {
             $deliveryData = [
-                'deliverySn' => $this->deliverySn,
-                'sourceOrderId' => $this->sourceOrderId,
-                'expressCompany' => $this->expressCompany,
-                'expressCode' => $this->expressCode,
-                'expressNumber' => $this->expressNumber,
-                'consigneeName' => $this->consigneeName,
-                'consigneePhone' => $this->consigneePhone,
-                'consigneeAddress' => $this->consigneeAddress,
-                'consigneeRemark' => $this->consigneeRemark,
-                'shippedAt' => $this->shippedTime,
-                'shippedBy' => $this->shippedBy,
-                'deliveryItems' => $this->deliveryItems,
+                'deliverySn' => $param->deliverySn,
+                'sourceOrderId' => $param->sourceOrderId,
+                'expressCompany' => $param->expressCompany,
+                'expressCode' => $param->expressCode,
+                'expressNumber' => $param->expressNumber,
+                'consigneeName' => $param->consigneeName,
+                'consigneePhone' => $param->consigneePhone,
+                'consigneeAddress' => $param->consigneeAddress,
+                'consigneeRemark' => $param->consigneeRemark,
+                'shippedAt' => $param->shippedTime,
+                'shippedBy' => $param->shippedBy,
+                'deliveryItems' => $param->deliveryItems,
             ];
 
             $deliverOrder = $this->deliveryService->syncDeliveryFromOms($deliveryData);
 
-            return [
+            return new ArrayResult([
                 'success' => true,
                 'message' => '发货信息同步成功',
                 'deliveryOrderId' => (string) $deliverOrder->getId(),
-            ];
+            ]);
         } catch (DeliverOperationException $e) {
             throw new ApiException($e->getMessage());
         }
     }
 
-    private function validateDeliveryItems(): void
+    private function validateDeliveryItems(SyncDeliveryInfoFromOmsParam $param): void
     {
-        if ([] === $this->deliveryItems) {
+        if ([] === $param->deliveryItems) {
             throw new ApiException('发货商品列表不能为空');
         }
 
-        foreach ($this->deliveryItems as $index => $item) {
+        foreach ($param->deliveryItems as $index => $item) {
             if (!isset($item['sku']) || '' === ($item['sku'] ?? '')) {
                 throw new ApiException(sprintf('第%d个商品SKU不能为空', $index + 1));
             }
